@@ -71,7 +71,7 @@ if st.session_state.page == "landing":
 
 elif st.session_state.page == "dashboard":
     if st.session_state.premium:
-        show_dashboard(lang, st.session_state.stats, st.session_state.biases)
+        show_dashboard(lang, st.session_state.stats, st.session_state.biases, st.session_state.df)
         if st.button("← Back to analysis" if lang == "EN" else "← Retour à l'analyse"):
             st.session_state.page = "analyse"
             st.rerun()

@@ -6,6 +6,7 @@ from insights import detect_biases
 from coach import generate_coach_report, generate_chat_response
 import tempfile
 import os
+from dashboard import show_dashboard
 
 # Init session state
 if 'page' not in st.session_state:
@@ -64,8 +65,21 @@ st.session_state.premium = st.sidebar.checkbox(
 )
 
 # NAVIGATION
+# Navigation
 if st.session_state.page == "landing":
     show_landing(lang)
+
+elif st.session_state.page == "dashboard":
+    if st.session_state.premium:
+        show_dashboard(lang, st.session_state.stats, st.session_state.biases)
+        if st.button("← Back to analysis" if lang == "EN" else "← Retour à l'analyse"):
+            st.session_state.page = "analyse"
+            st.rerun()
+    else:
+        st.warning("Premium feature" if lang == "EN" else "Fonctionnalité Premium")
+        if st.button("← Back" if lang == "EN" else "← Retour"):
+            st.session_state.page = "landing"
+            st.rerun()
 
 elif st.session_state.page == "analyse":
     if lang == "FR":
@@ -193,6 +207,12 @@ elif st.session_state.page == "analyse":
                             st.markdown(answer)
                     st.session_state.chat_history.append({"role": "assistant", "content": answer})
 
+                # DASHBOARD BUTTON
+                st.markdown("---")
+                if st.button("📊 Go to Challenge Dashboard →" if lang == "EN" else "📊 Voir mon Dashboard Challenge →", type="primary"):
+                    st.session_state.page = "dashboard"
+                    st.rerun()
+                    
             else:
                 st.markdown("---")
                 if lang == "FR":

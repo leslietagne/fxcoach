@@ -1,7 +1,7 @@
-
 streamlit
 pandas
 plotly
 groq
 anthropic
+supabase
 python-dotenv

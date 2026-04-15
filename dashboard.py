@@ -101,6 +101,7 @@ def show_dashboard(lang, stats, biases, df=None):
     else:
         st.error("📉 Early stage — focus on discipline, not profit." if lang == "EN" else "📉 Début du challenge — focus sur la discipline, pas le profit.")
 
+    
     # CALENDRIER
     if df is not None:
         st.markdown("---")
@@ -109,57 +110,103 @@ def show_dashboard(lang, stats, biases, df=None):
         df['Date'] = df['Open'].dt.date
         daily_pnl = df.groupby('Date')['Profit'].sum().round(2)
 
-        today = date.today()
-        year = today.year
-        month = today.month
+        # Mois disponibles
+        available_months = sorted(set([(d.year, d.month) for d in daily_pnl.index]))
 
-        cal = calendar.monthcalendar(year, month)
-        month_name = date(year, month, 1).strftime("%B %Y")
+        if available_months:
+            today = date.today()
+            current_month = (today.year, today.month)
 
-        st.markdown(f"**{month_name}**")
+            # Ajouter le mois en cours si pas encore de trades
+            all_months = sorted(set(available_months + [current_month]))
 
-        days_header = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        cols = st.columns(7)
-        for i, d in enumerate(days_header):
-            cols[i].markdown(f"<div style='text-align:center; font-size:12px; font-weight:600; color:gray;'>{d}</div>", unsafe_allow_html=True)
-
-        for week in cal:
-            cols = st.columns(7)
-            for i, day in enumerate(week):
-                if day == 0:
-                    cols[i].markdown("")
+            # Init session state pour le mois affiché
+            if 'cal_month_idx' not in st.session_state:
+                # Par défaut : mois en cours
+                if current_month in all_months:
+                    st.session_state.cal_month_idx = all_months.index(current_month)
                 else:
-                    current = date(year, month, day)
-                    pnl = daily_pnl.get(current, None)
+                    st.session_state.cal_month_idx = len(all_months) - 1
 
-                    if pnl is not None:
-                        color = "#e8f5e9" if pnl >= 0 else "#ffebee"
-                        text_color = "#2e7d32" if pnl >= 0 else "#c62828"
-                        sign = "+" if pnl >= 0 else ""
-                        cols[i].markdown(f"""
-                        <div style='text-align:center; background:{color}; border-radius:8px; padding:4px; margin:2px;'>
-                            <div style='font-size:11px; color:gray;'>{day}</div>
-                            <div style='font-size:11px; font-weight:600; color:{text_color};'>{sign}{pnl}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    elif current == today:
-                        cols[i].markdown(f"""
-                        <div style='text-align:center; background:#e3f2fd; border-radius:8px; padding:4px; margin:2px; border:1px solid #1565c0;'>
-                            <div style='font-size:11px; font-weight:700; color:#1565c0;'>{day}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    elif current <= today:
-                        cols[i].markdown(f"""
-                        <div style='text-align:center; background:#f5f5f5; border-radius:8px; padding:4px; margin:2px;'>
-                            <div style='font-size:11px; color:#bbb;'>{day}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+            # Navigation
+            col_prev, col_title, col_next = st.columns([1, 4, 1])
+
+            with col_prev:
+                if st.session_state.cal_month_idx > 0:
+                    if st.button("←"):
+                        st.session_state.cal_month_idx -= 1
+                        st.rerun()
+
+            with col_next:
+                if st.session_state.cal_month_idx < len(all_months) - 1:
+                    if st.button("→"):
+                        st.session_state.cal_month_idx += 1
+                        st.rerun()
+
+            year, month = all_months[st.session_state.cal_month_idx]
+            month_name = date(year, month, 1).strftime("%B %Y")
+
+            with col_title:
+                st.markdown(f"<div style='text-align:center; font-size:16px; font-weight:600;'>{month_name}</div>", unsafe_allow_html=True)
+
+            # En-têtes jours
+            days_header = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            cols = st.columns(7)
+            for i, d in enumerate(days_header):
+                cols[i].markdown(f"<div style='text-align:center; font-size:12px; font-weight:600; color:gray;'>{d}</div>", unsafe_allow_html=True)
+
+            # Calendrier
+            cal = calendar.monthcalendar(year, month)
+            for week in cal:
+                cols = st.columns(7)
+                for i, day in enumerate(week):
+                    if day == 0:
+                        cols[i].markdown("")
                     else:
-                        cols[i].markdown(f"""
-                        <div style='text-align:center; padding:4px; margin:2px;'>
-                            <div style='font-size:11px; color:#ddd;'>{day}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        current = date(year, month, day)
+                        pnl = daily_pnl.get(current, None)
+
+                        if pnl is not None:
+                            color = "#e8f5e9" if pnl >= 0 else "#ffebee"
+                            text_color = "#2e7d32" if pnl >= 0 else "#c62828"
+                            sign = "+" if pnl >= 0 else ""
+                            cols[i].markdown(f"""
+                            <div style='text-align:center; background:{color}; border-radius:8px; padding:4px; margin:2px;'>
+                                <div style='font-size:11px; color:gray;'>{day}</div>
+                                <div style='font-size:11px; font-weight:600; color:{text_color};'>{sign}{pnl}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        elif current == today:
+                            cols[i].markdown(f"""
+                            <div style='text-align:center; background:#e3f2fd; border-radius:8px; padding:4px; margin:2px; border:1px solid #1565c0;'>
+                                <div style='font-size:11px; font-weight:700; color:#1565c0;'>{day}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        elif current <= today:
+                            cols[i].markdown(f"""
+                            <div style='text-align:center; background:#f5f5f5; border-radius:8px; padding:4px; margin:2px;'>
+                                <div style='font-size:11px; color:#bbb;'>{day}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            cols[i].markdown(f"""
+                            <div style='text-align:center; padding:4px; margin:2px;'>
+                                <div style='font-size:11px; color:#ddd;'>{day}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+            # Résumé du mois
+            month_dates = [d for d in daily_pnl.index if d.year == year and d.month == month]
+            if month_dates:
+                month_pnl = sum(daily_pnl[d] for d in month_dates)
+                winning_days = sum(1 for d in month_dates if daily_pnl[d] > 0)
+                losing_days = sum(1 for d in month_dates if daily_pnl[d] < 0)
+
+                st.markdown("---")
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Month P&L" if lang == "EN" else "P&L du mois", f"${round(month_pnl, 2)}")
+                col2.metric("Green days" if lang == "EN" else "Jours verts", winning_days)
+                col3.metric("Red days" if lang == "EN" else "Jours rouges", losing_days)
 
     # SCORE DE DISCIPLINE
     st.markdown("---")

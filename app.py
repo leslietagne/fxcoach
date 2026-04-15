@@ -28,18 +28,28 @@ if 'report' not in st.session_state:
 st.set_page_config(page_title="FXCoach", page_icon="📈", layout="centered")
 st.markdown("""
 <style>
-   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
+        color: #1a1a2e;
     }
     
+    .stApp {
+        background-color: #ffffff;
+    }
+    
+    section[data-testid="stSidebar"] {
+        background-color: #f8f9fa;
+        border-right: 1px solid #e9ecef;
+    }
+
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)

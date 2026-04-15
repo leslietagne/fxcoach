@@ -1,18 +1,16 @@
 import os
-from unittest import result
-from groq import Groq
+import anthropic
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 def generate_coach_report(stats, biases, hour_stats, lang="EN"):
     biases_text = "\n".join([
         f"- {b['name']} ({b['severity']}): {b['detail']}"
         for b in biases
     ])
-
     hour_text = hour_stats.to_string()
 
     if lang == "FR":
@@ -23,11 +21,11 @@ Voici les données de trading d'un utilisateur :
 STATS GÉNÉRALES :
 - Total trades : {stats['total_trades']}
 - Win rate : {stats['win_rate']}%
-- Profit net : ${stats['net_profit']}
-- Gain moyen : ${stats['avg_win']}
-- Perte moyenne : ${stats['avg_loss']}
+- Profit net : {stats['net_profit']} USD
+- Gain moyen : {stats['avg_win']} USD
+- Perte moyenne : {stats['avg_loss']} USD
 - Ratio R/R : {stats['rr_ratio']}
-- Trades sans SL : {stats['trades_no_sl']} (P&L : ${stats['pnl_no_sl']})
+- Trades sans SL : {stats['trades_no_sl']} (P&L : {stats['pnl_no_sl']} USD)
 
 BIAIS DÉTECTÉS :
 {biases_text}
@@ -35,7 +33,7 @@ BIAIS DÉTECTÉS :
 PERFORMANCE PAR HEURE :
 {hour_text}
 
-Génère un rapport coach complet, personnalisé et bienveillant en français. 
+Génère un rapport coach complet, personnalisé et bienveillant en français.
 Structure ton rapport ainsi :
 1. Une introduction qui résume le profil du trader en 2-3 phrases
 2. Une analyse détaillée de chaque biais avec des exemples concrets tirés des données
@@ -52,11 +50,11 @@ Here is a trader's data:
 GENERAL STATS:
 - Total trades: {stats['total_trades']}
 - Win rate: {stats['win_rate']}%
-- Net profit: ${stats['net_profit']}
-- Avg win: ${stats['avg_win']}
-- Avg loss: ${stats['avg_loss']}
+- Net profit: {stats['net_profit']} USD
+- Avg win: {stats['avg_win']} USD
+- Avg loss: {stats['avg_loss']} USD
 - R/R ratio: {stats['rr_ratio']}
-- Trades with no SL: {stats['trades_no_sl']} (P&L: ${stats['pnl_no_sl']})
+- Trades with no SL: {stats['trades_no_sl']} (P&L: {stats['pnl_no_sl']} USD)
 
 DETECTED BIASES:
 {biases_text}
@@ -73,16 +71,13 @@ Structure your report as follows:
 
 Your tone should be that of a professional coach — direct, supportive, and based solely on the data. No generic advice."""
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7,
-        max_tokens=1500
+    response = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=1500,
+        messages=[{"role": "user", "content": prompt}]
     )
 
-    return response.choices[0].message.content
-    result = result.replace('$', 'USD ')
-    return result
+    return response.content[0].text
 
 
 def generate_chat_response(question, stats, biases, lang="EN"):
@@ -92,34 +87,30 @@ def generate_chat_response(question, stats, biases, lang="EN"):
     ])
 
     if lang == "FR":
-        system = f"""Tu es FXCoach, un coach trading expert. 
+        system = f"""Tu es FXCoach, un coach trading expert.
 Tu as accès aux données de trading de l'utilisateur :
 - Win rate : {stats['win_rate']}%
-- Profit net : ${stats['net_profit']}
+- Profit net : {stats['net_profit']} USD
 - Ratio R/R : {stats['rr_ratio']}
 - Biais détectés : {biases_text}
 
 Réponds en français de façon concise, directe et personnalisée basée sur ces données."""
+
     else:
         system = f"""You are FXCoach, an expert trading coach.
 You have access to the user's trading data:
 - Win rate: {stats['win_rate']}%
-- Net profit: ${stats['net_profit']}
+- Net profit: {stats['net_profit']} USD
 - R/R ratio: {stats['rr_ratio']}
 - Detected biases: {biases_text}
 
 Reply in English in a concise, direct and personalized way based on this data."""
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": question}
-        ],
-        temperature=0.7,
-        max_tokens=500
+    response = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=500,
+        system=system,
+        messages=[{"role": "user", "content": question}]
     )
 
-    return response.choices[0].message.content
-    result = result.replace('$', 'USD ')
-    return result
+    return response.content[0].text

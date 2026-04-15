@@ -28,129 +28,16 @@ if 'report' not in st.session_state:
 st.set_page_config(page_title="FXCoach", page_icon="📈", layout="centered")
 st.markdown("""
 <style>
-    /* Import font */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-    /* Global */
+   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
     }
-
-    /* Background */
-    .stApp {
-        background-color: #0d0d0f;
-        color: #f0efe8;
-    }
-
-    /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: #111118;
-        border-right: 1px solid #ffffff12;
-    }
-
-    /* Metrics */
-    [data-testid="stMetric"] {
-        background-color: #111118;
-        border: 1px solid #ffffff12;
-        border-radius: 12px;
-        padding: 1rem;
-    }
-
-    [data-testid="stMetricLabel"] {
-        color: #9998a0 !important;
-        font-size: 12px !important;
-        font-weight: 500 !important;
-        letter-spacing: 0.05em !important;
-        text-transform: uppercase !important;
-    }
-
-    [data-testid="stMetricValue"] {
-        color: #f0efe8 !important;
-        font-size: 24px !important;
-        font-weight: 600 !important;
-    }
-
-    /* Buttons */
-    .stButton > button {
-        background-color: #c9a84c !important;
-        color: #0d0d0f !important;
-        border: none !important;
-        border-radius: 8px !important;
-        font-weight: 600 !important;
-        padding: 0.6rem 1.5rem !important;
-        font-size: 14px !important;
-        transition: all 0.2s !important;
-    }
-
-    .stButton > button:hover {
-        background-color: #e8c87a !important;
-        transform: translateY(-1px) !important;
-    }
-
-    /* File uploader */
-    [data-testid="stFileUploader"] {
-        background-color: #111118 !important;
-        border: 1px dashed #ffffff30 !important;
-        border-radius: 12px !important;
-        padding: 1rem !important;
-    }
-
-    /* Alerts */
-    [data-testid="stAlert"] {
-        border-radius: 10px !important;
-        border-left-width: 3px !important;
-    }
-
-    /* Dataframe */
-    [data-testid="stDataFrame"] {
-        border-radius: 10px !important;
-        overflow: hidden !important;
-    }
-
-    /* Divider */
-    hr {
-        border-color: #ffffff12 !important;
-    }
-
-    /* Chat */
-    [data-testid="stChatMessage"] {
-        background-color: #111118 !important;
-        border-radius: 12px !important;
-        border: 1px solid #ffffff12 !important;
-    }
-
-    /* Headers */
-    h1, h2, h3 {
-        color: #f0efe8 !important;
-        font-weight: 600 !important;
-    }
-
-    /* Selectbox */
-    [data-testid="stSelectbox"] {
-        background-color: #111118 !important;
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-        width: 4px;
-    }
-    ::-webkit-scrollbar-track {
-        background: #0d0d0f;
-    }
-    ::-webkit-scrollbar-thumb {
-        background: #ffffff20;
-        border-radius: 2px;
-    }
-            /* Hide Streamlit header and footer */
-    header[data-testid="stHeader"] {
-        background-color: #0d0d0f !important;
-    }
-
+    
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-
-    /* Top padding fix */
+    
     .block-container {
         padding-top: 1rem !important;
     }

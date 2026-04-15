@@ -51,8 +51,8 @@ if st.session_state.user:
     else:
         st.sidebar.info("Free plan")
         if st.sidebar.button("✨ Upgrade to Premium" if lang == "EN" else "✨ Passer Premium"):
-            st.session_state.page = "pricing"
-            st.rerun()
+                st.session_state.page = "analyse"
+                st.rerun()
     if st.sidebar.button("Logout" if lang == "EN" else "Déconnexion"):
         logout(lang)
 else:
@@ -72,7 +72,7 @@ if st.session_state.user and st.session_state.stats:
         st.rerun()
 
 # PAGES
-if st.session_state.page == "landing":
+if st.session_state.page == "landing" or st.session_state.page not in ["auth", "analyse", "dashboard"]:
     show_landing(lang)
 
 elif st.session_state.page == "auth":

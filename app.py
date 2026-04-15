@@ -4,79 +4,92 @@ from landing import show_landing
 from analyzer import load_trades, get_stats, get_stats_by_hour
 from insights import detect_biases
 from coach import generate_coach_report, generate_chat_response
+from dashboard import show_dashboard
+from auth import show_auth, logout, get_user_notes, save_user_notes, save_chat_message, get_chat_history, is_premium
 import tempfile
 import os
-from dashboard import show_dashboard
 
 # Init session state
-if 'page' not in st.session_state:
-    st.session_state.page = "landing"
-if 'lang' not in st.session_state:
-    st.session_state.lang = "EN"
-if 'df' not in st.session_state:
-    st.session_state.df = None
-if 'stats' not in st.session_state:
-    st.session_state.stats = None
-if 'biases' not in st.session_state:
-    st.session_state.biases = None
-if 'premium' not in st.session_state:
-    st.session_state.premium = False
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
-if 'report' not in st.session_state:
-    st.session_state.report = None
+defaults = {
+    'page': 'landing',
+    'lang': 'EN',
+    'df': None,
+    'stats': None,
+    'biases': None,
+    'report': None,
+    'chat_history': [],
+    'user': None,
+    'access_token': None,
+}
+for key, val in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
 
 st.set_page_config(page_title="FXCoach", page_icon="📈", layout="centered")
+
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-        color: #1a1a2e;
-    }
-    
-    .stApp {
-        background-color: #ffffff;
-    }
-    
-    section[data-testid="stSidebar"] {
-        background-color: #f8f9fa;
-        border-right: 1px solid #e9ecef;
-    }
-
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
-    .block-container {
-        padding-top: 1rem;
-    }
+    .block-container { padding-top: 1rem; }
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar
+# SIDEBAR
 lang = st.sidebar.selectbox("🌍 Language", ["EN", "FR"])
 st.session_state.lang = lang
 
-# Mode premium simulé pour test
-st.session_state.premium = st.sidebar.checkbox(
-    "✨ Premium mode (test)" if lang == "EN" else "✨ Mode Premium (test)"
-)
+# Auth dans sidebar
+if st.session_state.user:
+    st.sidebar.markdown(f"👤 {st.session_state.user.email}")
+    user_premium = is_premium(str(st.session_state.user.id))
+    if user_premium:
+        st.sidebar.success("✨ Premium")
+    else:
+        st.sidebar.info("Free plan")
+        if st.sidebar.button("✨ Upgrade to Premium" if lang == "EN" else "✨ Passer Premium"):
+            st.session_state.page = "pricing"
+            st.rerun()
+    if st.sidebar.button("Logout" if lang == "EN" else "Déconnexion"):
+        logout(lang)
+else:
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🔐 Login / Sign up" if lang == "EN" else "🔐 Connexion / Inscription"):
+        st.session_state.page = "auth"
+        st.rerun()
 
-# NAVIGATION
-# Navigation
+# Navigation sidebar
+if st.session_state.user and st.session_state.stats:
+    st.sidebar.markdown("---")
+    if st.sidebar.button("📊 Analysis" if lang == "EN" else "📊 Analyse"):
+        st.session_state.page = "analyse"
+        st.rerun()
+    if st.sidebar.button("🏆 Dashboard"):
+        st.session_state.page = "dashboard"
+        st.rerun()
+
+# PAGES
 if st.session_state.page == "landing":
     show_landing(lang)
 
+elif st.session_state.page == "auth":
+    if st.session_state.user:
+        st.session_state.page = "landing"
+        st.rerun()
+    show_auth(lang)
+
 elif st.session_state.page == "dashboard":
-    if st.session_state.premium:
+    user_premium = is_premium(str(st.session_state.user.id)) if st.session_state.user else False
+    if user_premium:
         show_dashboard(lang, st.session_state.stats, st.session_state.biases, st.session_state.df)
         if st.button("← Back to analysis" if lang == "EN" else "← Retour à l'analyse"):
             st.session_state.page = "analyse"
             st.rerun()
     else:
-        st.warning("Premium feature" if lang == "EN" else "Fonctionnalité Premium")
+        st.warning("Premium feature — upgrade to access the dashboard." if lang == "EN" else "Fonctionnalité Premium — upgrade pour accéder au dashboard.")
         if st.button("← Back" if lang == "EN" else "← Retour"):
             st.session_state.page = "landing"
             st.rerun()
@@ -94,6 +107,12 @@ elif st.session_state.page == "analyse":
     if st.button(back):
         st.session_state.page = "landing"
         st.rerun()
+
+    # Vérifier si connecté
+    if not st.session_state.user:
+        st.info("🔐 Login to save your analysis and access Premium features." if lang == "EN" else "🔐 Connecte-toi pour sauvegarder tes analyses et accéder aux fonctionnalités Premium.")
+
+    user_premium = is_premium(str(st.session_state.user.id)) if st.session_state.user else False
 
     uploaded_file = st.file_uploader(upload_label, type=["csv"])
 
@@ -127,42 +146,35 @@ elif st.session_state.page == "analyse":
                 st.warning(f"⚠️ {stats['trades_no_sl']} trades with no SL — P&L: ${stats['pnl_no_sl']}")
 
             # GRAPHIQUES — PREMIUM
-            if st.session_state.premium:
+            if user_premium:
                 st.markdown("---")
                 st.markdown("### 📈 Charts" if lang == "EN" else "### 📈 Graphiques")
-
                 hour_df = hour_stats.reset_index()
                 hour_df.columns = ['Hour', 'Trades', 'Profit', 'Win Rate']
                 hour_df['Win Rate'] = (hour_df['Win Rate'] * 100).round(1)
-
-                fig1 = px.bar(
-                    hour_df, x='Hour', y='Profit',
-                    color='Profit',
-                    color_continuous_scale=['red', 'yellow', 'green'],
-                    title='P&L by Hour' if lang == "EN" else 'P&L par heure'
-                )
+                fig1 = px.bar(hour_df, x='Hour', y='Profit',
+                    color='Profit', color_continuous_scale=['red', 'yellow', 'green'],
+                    title='P&L by Hour' if lang == "EN" else 'P&L par heure')
                 st.plotly_chart(fig1, use_container_width=True)
-
-                fig2 = px.bar(
-                    hour_df, x='Hour', y='Win Rate',
-                    color='Win Rate',
-                    color_continuous_scale=['red', 'yellow', 'green'],
-                    title='Win Rate by Hour (%)' if lang == "EN" else 'Win Rate par heure (%)'
-                )
+                fig2 = px.bar(hour_df, x='Hour', y='Win Rate',
+                    color='Win Rate', color_continuous_scale=['red', 'yellow', 'green'],
+                    title='Win Rate by Hour (%)' if lang == "EN" else 'Win Rate par heure (%)')
                 st.plotly_chart(fig2, use_container_width=True)
 
             # BIAIS
             st.markdown("---")
             st.markdown("### 🧠 Biases detected" if lang == "EN" else "### 🧠 Biais détectés")
 
-            if st.session_state.premium:
+            if user_premium:
                 for b in biases:
                     if b['severity'] == 'CRITICAL':
                         st.error(f"🔴 **{b['name']}** — {b['detail']}\n\n💡 {b['advice']}")
                     elif b['severity'] == 'HIGH':
                         st.warning(f"🟠 **{b['name']}** — {b['detail']}\n\n💡 {b['advice']}")
-                    else:
+                    elif b['severity'] == 'MEDIUM':
                         st.info(f"🔵 **{b['name']}** — {b['detail']}\n\n💡 {b['advice']}")
+                    else:
+                        st.success(f"✅ **{b['name']}** — {b['detail']}")
             else:
                 if biases:
                     b = biases[0]
@@ -173,21 +185,23 @@ elif st.session_state.page == "analyse":
                     else:
                         st.info(f"🔵 **{b['name']}** — {b['detail']}\n\n💡 {b['advice']}")
 
-            # RAPPORT COACH — PREMIUM
-            if st.session_state.premium:
+            # RAPPORT COACH
+            if user_premium:
                 st.markdown("---")
                 st.markdown("### 🎯 Coach report" if lang == "EN" else "### 🎯 Rapport coach")
-
                 if st.session_state.report is None:
                     with st.spinner("Generating your personalized report..." if lang == "EN" else "Génération de ton rapport personnalisé..."):
                         report = generate_coach_report(stats, biases, hour_stats, lang)
                         st.session_state.report = report
-
                 st.markdown(st.session_state.report)
 
                 # CHAT
                 st.markdown("---")
                 st.markdown("### 💬 Chat with your coach" if lang == "EN" else "### 💬 Chat avec ton coach")
+
+                # Charger historique si connecté
+                if st.session_state.user and not st.session_state.chat_history:
+                    st.session_state.chat_history = get_chat_history(str(st.session_state.user.id))
 
                 for msg in st.session_state.chat_history:
                     with st.chat_message(msg["role"]):
@@ -196,9 +210,10 @@ elif st.session_state.page == "analyse":
                 question = st.chat_input(
                     "Ask your coach anything..." if lang == "EN" else "Pose une question à ton coach..."
                 )
-
                 if question:
                     st.session_state.chat_history.append({"role": "user", "content": question})
+                    if st.session_state.user:
+                        save_chat_message(str(st.session_state.user.id), "user", question)
                     with st.chat_message("user"):
                         st.markdown(question)
                     with st.chat_message("assistant"):
@@ -206,13 +221,15 @@ elif st.session_state.page == "analyse":
                             answer = generate_chat_response(question, stats, biases, lang)
                             st.markdown(answer)
                     st.session_state.chat_history.append({"role": "assistant", "content": answer})
+                    if st.session_state.user:
+                        save_chat_message(str(st.session_state.user.id), "assistant", answer)
 
                 # DASHBOARD BUTTON
                 st.markdown("---")
                 if st.button("📊 Go to Challenge Dashboard →" if lang == "EN" else "📊 Voir mon Dashboard Challenge →", type="primary"):
                     st.session_state.page = "dashboard"
                     st.rerun()
-                    
+
             else:
                 st.markdown("---")
                 if lang == "FR":

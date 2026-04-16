@@ -32,7 +32,7 @@ async def analyze(file: UploadFile = File(...), lang: str = "EN"):
     try:
         df = load_trades(tmp_path)
         stats = get_stats(df)
-        biases = detect_biases(df)
+        biases = detect_biases(df, lang)
         hour_stats = get_stats_by_hour(df)
 
         return {

@@ -1,7 +1,8 @@
-streamlit
+fastapi
+uvicorn
 pandas
-plotly
-groq
 anthropic
 supabase
+stripe
 python-dotenv
+python-multipart

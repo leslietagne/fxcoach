@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from analyzer import load_trades, get_stats, get_stats_by_hour
 from insights import detect_biases
 from coach import generate_coach_report, generate_chat_response
+from fastapi import FastAPI, UploadFile, File, Request
 import tempfile
 import os
 from dotenv import load_dotenv
@@ -87,7 +88,7 @@ async def create_checkout_session(data: dict):
     return {"url": session.url}
 
 @app.post("/webhook")
-async def webhook(request):
+async def webhook(request: Request):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
     

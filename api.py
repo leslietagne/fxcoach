@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Request
+from fastapi import FastAPI, UploadFile, File, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from analyzer import load_trades, get_stats, get_stats_by_hour
 from insights import detect_biases
@@ -7,7 +7,6 @@ import tempfile
 import os
 import stripe
 from dotenv import load_dotenv
-from fastapi import FastAPI, UploadFile, File, Request, Form
 
 load_dotenv()
 
@@ -36,10 +35,16 @@ async def analyze(file: UploadFile = File(...), lang: str = Form("EN")):
         biases = detect_biases(df, lang)
         hour_stats = get_stats_by_hour(df)
 
+        # DAILY P&L pour le calendrier
+        df['_date'] = df['Open'].dt.strftime('%Y-%m-%d')
+        daily = df.groupby('_date')['Profit'].sum().round(2)
+        daily_pnl = [{"date": d, "pnl": float(p)} for d, p in daily.items()]
+
         return {
             "stats": stats,
             "biases": biases,
             "hour_stats": hour_stats.reset_index().to_dict(orient="records"),
+            "daily_pnl": daily_pnl,
         }
     finally:
         os.unlink(tmp_path)

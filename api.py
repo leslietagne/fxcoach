@@ -81,8 +81,8 @@ async def create_checkout_session(data: dict):
         payment_method_types=["card"],
         line_items=[{"price": price_id, "quantity": 1}],
         mode="subscription",
-        success_url="http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}",
-        cancel_url="http://localhost:3000/pricing",
+        success_url="http://fxcoach-vert.vercel.app/success?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url="http://fxcoach-vert.vercel.app/pricing",
         metadata={"user_id": user_id}
     )
     return {"url": session.url}

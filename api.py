@@ -7,6 +7,7 @@ import tempfile
 import os
 import stripe
 from dotenv import load_dotenv
+from fastapi import FastAPI, UploadFile, File, Request, Form
 
 load_dotenv()
 
@@ -23,7 +24,7 @@ app.add_middleware(
 )
 
 @app.post("/analyze")
-async def analyze(file: UploadFile = File(...), lang: str = "EN"):
+async def analyze(file: UploadFile = File(...), lang: str = Form("EN")):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
         content = await file.read()
         tmp.write(content)

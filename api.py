@@ -45,6 +45,10 @@ async def analyze(file: UploadFile = File(...), lang: str = Form("EN")):
             "hour_stats": hour_stats.reset_index().to_dict(orient="records"),
             "daily_pnl": daily_pnl,
         }
+    except ValueError as e:
+        return {"error": str(e), "type": "invalid_format"}
+    except Exception as e:
+        return {"error": "Unexpected error", "detail": str(e), "type": "unknown"}
     finally:
         os.unlink(tmp_path)
 

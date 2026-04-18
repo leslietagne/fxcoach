@@ -1,34 +1,10 @@
 import pandas as pd
 
-COLUMN_ALIASES = {
-    'Ticket': ['Ticket', 'ticket', 'Order', 'order', 'ID', 'id', 'Trade #', 'Position'],
-    'Open': ['Open', 'open', 'Open Time', 'OpenTime', 'Date/Time', 'Open time', 'Time', 'Entry Time', 'open_time'],
-    'Type': ['Type', 'type', 'Action', 'Direction', 'Side', 'B/S'],
-    'Volume': ['Volume', 'volume', 'Lots', 'lots', 'Size', 'size', 'Quantity', 'Lot Size'],
-    'Symbol': ['Symbol', 'symbol', 'Instrument', 'instrument', 'Asset', 'Pair'],
-    'Entry_Price': ['Entry_Price', 'Open Price', 'OpenPrice', 'Price', 'Entry', 'entry_price', 'Open price'],
-    'SL': ['SL', 'Stop Loss', 'StopLoss', 'stop_loss', 'S/L', 'Stop loss'],
-    'TP': ['TP', 'Take Profit', 'TakeProfit', 'take_profit', 'T/P', 'Take profit'],
-    'Close': ['Close', 'close', 'Close Time', 'CloseTime', 'Exit Time', 'close_time', 'Close time'],
-    'Exit_Price': ['Exit_Price', 'Close Price', 'ClosePrice', 'Exit', 'exit_price', 'Close price'],
-    'Swap': ['Swap', 'swap', 'Rollover', 'rollover'],
-    'Commission': ['Commission', 'commission', 'Fee', 'fee', 'Fees'],
-    'Profit': ['Profit', 'profit', 'P&L', 'PnL', 'pnl', 'Net P&L', 'Gain', 'Result'],
-    'Pips': ['Pips', 'pips', 'Points', 'points'],
-    'Duration_sec': ['Duration_sec', 'Duration', 'duration'],
-}
-
-def find_column(df_columns, aliases):
-    for alias in aliases:
-        if alias in df_columns:
-            return alias
-    return None
-
 def load_trades(filepath):
     # Essaie différents séparateurs
     for sep in [',', ';', '\t']:
         try:
-            df = pd.read_csv(filepath, sep=sep)
+            df = pd.read_csv(filepath, sep=sep, header=0)
             if len(df.columns) > 3:
                 break
         except:
@@ -36,66 +12,91 @@ def load_trades(filepath):
 
     # Nettoie les noms de colonnes
     df.columns = [str(c).strip() for c in df.columns]
-    original_cols = list(df.columns)
 
-    # Mappe les colonnes trouvées
-    col_map = {}
-    for standard_name, aliases in COLUMN_ALIASES.items():
-        found = find_column(original_cols, aliases)
-        if found:
-            col_map[found] = standard_name
+    # Gère les colonnes dupliquées "Price" (FTMO)
+    cols = list(df.columns)
+    price_indices = [i for i, c in enumerate(cols) if c == 'Price']
+    if len(price_indices) >= 2:
+        cols[price_indices[0]] = 'Entry_Price'
+        cols[price_indices[1]] = 'Exit_Price'
+        df.columns = cols
 
-    df = df.rename(columns=col_map)
+    # Mapping des colonnes selon différents formats
+    rename_map = {}
+    col_lower = {c.lower(): c for c in df.columns}
+
+    mappings = {
+        'Commission': ['commissions', 'commission', 'fee', 'fees'],
+        'SL': ['sl', 'stop loss', 'stoploss', 's/l'],
+        'TP': ['tp', 'take profit', 'takeprofit', 't/p'],
+        'Volume': ['volume', 'lots', 'size', 'quantity', 'lot size'],
+        'Symbol': ['symbol', 'instrument', 'asset', 'pair'],
+        'Type': ['type', 'action', 'direction', 'side', 'b/s'],
+        'Swap': ['swap', 'rollover'],
+        'Profit': ['profit', 'p&l', 'pnl', 'net p&l', 'gain', 'result'],
+        'Pips': ['pips', 'points'],
+        'Duration_sec': ['trade duration in seconds', 'duration_sec', 'duration'],
+        'Entry_Price': ['entry_price', 'open price', 'openPrice', 'entry'],
+        'Exit_Price': ['exit_price', 'close price', 'closePrice', 'exit'],
+    }
+
+    for standard, aliases in mappings.items():
+        if standard not in df.columns:
+            for alias in aliases:
+                if alias in col_lower:
+                    rename_map[col_lower[alias]] = standard
+                    break
+
+    df = df.rename(columns=rename_map)
 
     # Colonnes obligatoires
     required = ['Open', 'Close', 'Profit']
     missing = [c for c in required if c not in df.columns]
     if missing:
-        raise ValueError(f"Colonnes manquantes : {missing}. Colonnes trouvées : {original_cols}")
+        raise ValueError(f"Colonnes manquantes : {missing}. Colonnes trouvées : {list(df.columns)}")
 
     # Colonnes optionnelles — valeur par défaut si absentes
-    if 'Volume' not in df.columns:
-        df['Volume'] = 0.01
-    if 'SL' not in df.columns:
-        df['SL'] = 0
-    if 'TP' not in df.columns:
-        df['TP'] = 0
-    if 'Swap' not in df.columns:
-        df['Swap'] = 0
-    if 'Commission' not in df.columns:
-        df['Commission'] = 0
-    if 'Entry_Price' not in df.columns:
-        df['Entry_Price'] = 0
-    if 'Exit_Price' not in df.columns:
-        df['Exit_Price'] = 0
-    if 'Symbol' not in df.columns:
-        df['Symbol'] = 'UNKNOWN'
-    if 'Type' not in df.columns:
-        df['Type'] = 'buy'
-    if 'Pips' not in df.columns:
-        df['Pips'] = 0
+    defaults = {
+        'Volume': 0.01,
+        'SL': 0,
+        'TP': 0,
+        'Swap': 0,
+        'Commission': 0,
+        'Entry_Price': 0,
+        'Exit_Price': 0,
+        'Symbol': 'UNKNOWN',
+        'Type': 'buy',
+        'Pips': 0,
+        'Duration_sec': 0,
+    }
+    for col, default in defaults.items():
+        if col not in df.columns:
+            df[col] = default
 
-    # Conversions
-    df['Open'] = pd.to_datetime(df['Open'], infer_datetime_format=True)
-    df['Close'] = pd.to_datetime(df['Close'], infer_datetime_format=True)
-    df['Profit'] = pd.to_numeric(df['Profit'], errors='coerce').fillna(0)
-    df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0.01)
-    df['SL'] = pd.to_numeric(df['SL'], errors='coerce').fillna(0)
-    df['Commission'] = pd.to_numeric(df['Commission'], errors='coerce').fillna(0)
-    df['Swap'] = pd.to_numeric(df['Swap'], errors='coerce').fillna(0)
+    # Conversions dates — compatible tous formats
+    try:
+        df['Open'] = pd.to_datetime(df['Open'], format='mixed', dayfirst=False)
+        df['Close'] = pd.to_datetime(df['Close'], format='mixed', dayfirst=False)
+    except Exception:
+        df['Open'] = pd.to_datetime(df['Open'], infer_datetime_format=True, errors='coerce')
+        df['Close'] = pd.to_datetime(df['Close'], infer_datetime_format=True, errors='coerce')
+
+    # Conversions numériques
+    for col in ['Profit', 'Volume', 'SL', 'TP', 'Commission', 'Swap', 'Entry_Price', 'Exit_Price', 'Pips', 'Duration_sec']:
+        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
     # Calculs
     df['Open_Hour'] = df['Open'].dt.hour
-    df['Duration_sec'] = (df['Close'] - df['Open']).dt.total_seconds()
     df['Duration_min'] = df['Duration_sec'] / 60
     df['Won'] = df['Profit'] > 0
     df['Net_Profit'] = df['Profit'] + df['Swap'] + df['Commission']
 
-    # Filtre les lignes sans profit valide
-    df = df.dropna(subset=['Profit'])
+    # Filtre les lignes invalides
+    df = df.dropna(subset=['Profit', 'Open', 'Close'])
     df = df[df['Profit'] != 0]
 
     return df
+
 
 def get_stats(df):
     wins = df[df['Won']]
@@ -118,12 +119,14 @@ def get_stats(df):
     }
     return stats
 
+
 def get_stats_by_hour(df):
     return df.groupby('Open_Hour').agg(
         trades=('Profit', 'count'),
         profit=('Profit', 'sum'),
         win_rate=('Won', 'mean')
     ).round(2)
+
 
 def get_stats_by_direction(df):
     return df.groupby('Type').agg(
